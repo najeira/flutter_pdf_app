@@ -55,4 +55,11 @@ class FileNamesNotifier extends AsyncNotifier<List<String>> {
       await pref.setStringList(_prefKey, list);
     }
   }
+
+  Future<void> clear() async {
+    final list = <String>[];
+    state = AsyncValue.data(list);
+    final pref = ref.read(_preferencesProvider);
+    await pref.setStringList(_prefKey, list);
+  }
 }

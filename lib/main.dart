@@ -47,6 +47,7 @@ class _MyScaffold extends StatelessWidget {
       },
       child: Focus(
         child: MacosWindow(
+          backgroundColor: Colors.white,
           child: MacosScaffold(
             // child: const MyViewer(),
             toolBar: ToolBar(
@@ -61,6 +62,15 @@ class _MyScaffold extends StatelessWidget {
                   label: "Add",
                   showLabel: true,
                   onPressed: () => pickFile(context),
+                ),
+                ToolBarIconButton(
+                  icon: const Icon(Icons.clear_all),
+                  label: "Clear",
+                  showLabel: true,
+                  onPressed: () {
+                    final ps = ProviderScope.containerOf(context, listen: false);
+                    ps.read(fileNamesProvider.notifier).clear();
+                  },
                 ),
               ],
             ),
