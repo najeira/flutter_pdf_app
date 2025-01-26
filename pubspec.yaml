@@ -13,6 +13,7 @@ dependencies:
   flutter_riverpod: ^2.6.1
   freezed_annotation: ^2.4.4
   macos_ui: ^2.1.7
+  path: ^1.9.1
   pdfx: ^2.8.0
   shared_preferences: ^2.4.0
 

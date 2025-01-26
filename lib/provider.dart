@@ -36,6 +36,16 @@ class FileNamesNotifier extends AsyncNotifier<List<String>> {
     }
   }
 
+  Future<void> addAll(Iterable<String> value) async {
+    final list = state.value;
+    if (list != null) {
+      list.addAll(value);
+      state = AsyncValue.data(list);
+      final pref = ref.read(_preferencesProvider);
+      await pref.setStringList(_prefKey, list);
+    }
+  }
+
   Future<void> remove(String value) async {
     final list = state.value;
     if (list != null) {

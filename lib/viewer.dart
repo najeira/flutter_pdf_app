@@ -17,58 +17,78 @@ class MyViewer extends ConsumerStatefulWidget {
 }
 
 class _MyViewerState extends ConsumerState<MyViewer> {
-  late final PdfController _controller;
+  PdfController? _controller;
 
   @override
   void initState() {
     super.initState();
-    final name =
-        "/Users/najeira/Downloads/Verifying_your_Play_Console_developer_account_for_organizations.pdf";
-    _controller = PdfController(
-      document: PdfDocument.openFile(name),
-    );
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(selectedFileProvider, (prev, next) {
-      if (prev != next && next != null) {
-        _controller.loadDocument(PdfDocument.openFile(next));
-      }
-    });
+    ref.listen<String?>(selectedFileProvider, _onFileChanged);
+
+    final controller = _controller;
+    if (controller == null) {
+      return const Center(
+        child: Text("No file selected"),
+      );
+    }
 
     return CallbackShortcuts(
       bindings: <ShortcutActivator, VoidCallback>{
         const SingleActivator(LogicalKeyboardKey.arrowRight): () {
-          _page(_controller.nextPage);
+          _page(controller.nextPage);
         },
         const SingleActivator(LogicalKeyboardKey.arrowLeft): () {
-          _page(_controller.previousPage);
+          _page(controller.previousPage);
         },
       },
-      child: Focus(
-        autofocus: true,
-        child: PdfView(
-          controller: _controller,
-          builders: PdfViewBuilders<DefaultBuilderOptions>(
-            options: const DefaultBuilderOptions(
+      child: PdfView(
+        controller: controller,
+        onPageChanged: (page) {
+          debugPrint("PdfView.onPageChanged: ${page}");
+        },
+        onDocumentLoaded: (document) {
+          debugPrint("PdfView.onDocumentLoaded: ${document}");
+        },
+        onDocumentError: (error) {
+          debugPrint("PdfView.onDocumentError: ${error}");
+        },
+        builders: PdfViewBuilders<DefaultBuilderOptions>(
+          options: const DefaultBuilderOptions(
               // loaderSwitchDuration: const Duration(seconds: 1),
               // transitionBuilder: SomeWidget.transitionBuilder,
-            ),
-            documentLoaderBuilder: (_) => const _MyLoading(),
-            pageLoaderBuilder: (_) => const _MyLoading(),
-            errorBuilder: (_, error) => _MyError(error),
-            // builder: SomeWidget.builder,
-          ),
+              ),
+          documentLoaderBuilder: (_) => const _MyLoading(),
+          pageLoaderBuilder: (_) => const _MyLoading(),
+          errorBuilder: (_, error) => _MyError(error),
+          // builder: SomeWidget.builder,
         ),
       ),
     );
+  }
+
+  void _onFileChanged(String? prev, String? next) {
+    debugPrint("selectedFileProvider: ${prev} -> ${next}");
+    if (prev != next && next != null) {
+      final file = PdfDocument.openFile(next);
+      setState(() {
+        if (_controller != null) {
+          _controller?.loadDocument(file);
+        } else {
+          _controller = PdfController(
+            document: file,
+          );
+        }
+      });
+    }
   }
 
   Future<void> _page(PagingFunction pager) async {
@@ -93,7 +113,8 @@ class _MyLoading extends StatelessWidget {
 }
 
 class _MyError extends StatelessWidget {
-  const _MyError(this.error, {
+  const _MyError(
+    this.error, {
     super.key,
   });
 
