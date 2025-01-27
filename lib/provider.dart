@@ -4,10 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pdfrx/pdfrx.dart';
 
+import 'cache.dart';
 import 'log.dart';
 
 final _preferencesProvider = Provider<SharedPreferencesAsync>((ref) {
   return SharedPreferencesAsync();
+});
+
+final _cacheProvider = Provider<Cache>((ref) {
+  return Cache();
 });
 
 final selectedFileProvider = StateProvider<String?>((ref) {
@@ -74,10 +79,20 @@ final documentNotifierProvider =
 class DocumentNotifier extends AutoDisposeAsyncNotifier<PdfDocument?> {
   @override
   FutureOr<PdfDocument?> build() async {
+    final cache = ref.watch(_cacheProvider);
     final filePath = ref.watch(selectedFileProvider);
     if (filePath == null || filePath.isEmpty) {
       log.fine("DocumentNotifier: no file selected");
       return null;
+    }
+
+    final cachedEntry = cache.pop(filePath);
+    if (cachedEntry != null) {
+      log.fine("DocumentNotifier: reuse ${filePath}");
+      ref.onDispose(() {
+        _pushCache(cache, filePath, cachedEntry.listenable);
+      });
+      return cachedEntry.listenable.document;
     }
 
     final documentRef = PdfDocumentRefFile(filePath);
@@ -87,14 +102,31 @@ class DocumentNotifier extends AutoDisposeAsyncNotifier<PdfDocument?> {
     listenable.addListener(_onDocumentChanged);
 
     ref.onDispose(() {
-      // to dispose the document
-      log.fine("DocumentNotifier: dispose ${filePath}");
-      listenable.removeListener(_onDocumentChanged);
+      _pushCache(cache, filePath, listenable);
     });
 
     await listenable.load();
     log.fine("DocumentNotifier: loaded ${filePath}");
     return listenable.document;
+  }
+
+  void _pushCache(
+    Cache cache,
+    String filePath,
+    PdfDocumentListenable listenable,
+  ) {
+    log.fine("DocumentNotifier: cache ${filePath}");
+    cache.push(
+      filePath,
+      CacheEntry(
+        listenable,
+        () {
+          log.fine("DocumentNotifier: dispose ${filePath}");
+          // to dispose the document
+          listenable.removeListener(_onDocumentChanged);
+        },
+      ),
+    );
   }
 
   void _onDocumentChanged() {
