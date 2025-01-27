@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pdfrx/pdfrx.dart';
+
+import 'log.dart';
 
 final _preferencesProvider = Provider<SharedPreferencesAsync>((ref) {
   return SharedPreferencesAsync();
@@ -11,28 +14,27 @@ final selectedFileProvider = StateProvider<String?>((ref) {
   return null;
 });
 
-final fileNamesProvider =
-    AsyncNotifierProvider<FileNamesNotifier, List<String>>(() {
-  return FileNamesNotifier();
+final fileListProvider =
+    AsyncNotifierProvider<FileListNotifier, Set<String>>(() {
+  return FileListNotifier();
 });
 
-class FileNamesNotifier extends AsyncNotifier<List<String>> {
+class FileListNotifier extends AsyncNotifier<Set<String>> {
   static const _prefKey = "files";
 
   @override
-  FutureOr<List<String>> build() async {
+  FutureOr<Set<String>> build() async {
     final pref = ref.watch(_preferencesProvider);
     final res = await pref.getStringList(_prefKey);
-    return res ?? [];
+    log.fine("FileListNotifier: loaded ${res?.length}");
+    return res != null ? Set.of(res) : {};
   }
 
   Future<void> add(String value) async {
     final list = state.value;
     if (list != null) {
       list.add(value);
-      state = AsyncValue.data(list);
-      final pref = ref.read(_preferencesProvider);
-      await pref.setStringList(_prefKey, list);
+      _setStateAndSave(list);
     }
   }
 
@@ -40,9 +42,7 @@ class FileNamesNotifier extends AsyncNotifier<List<String>> {
     final list = state.value;
     if (list != null) {
       list.addAll(value);
-      state = AsyncValue.data(list);
-      final pref = ref.read(_preferencesProvider);
-      await pref.setStringList(_prefKey, list);
+      _setStateAndSave(list);
     }
   }
 
@@ -50,16 +50,67 @@ class FileNamesNotifier extends AsyncNotifier<List<String>> {
     final list = state.value;
     if (list != null) {
       list.remove(value);
-      state = AsyncValue.data(list);
-      final pref = ref.read(_preferencesProvider);
-      await pref.setStringList(_prefKey, list);
+      _setStateAndSave(list);
     }
   }
 
   Future<void> clear() async {
-    final list = <String>[];
-    state = AsyncValue.data(list);
+    _setStateAndSave(<String>{});
+  }
+
+  Future<void> _setStateAndSave(Set<String> value) async {
+    state = AsyncValue.data(value);
     final pref = ref.read(_preferencesProvider);
-    await pref.setStringList(_prefKey, list);
+    await pref.setStringList(_prefKey, value.toList());
+    log.fine("FileListNotifier: saved ${value.length}");
+  }
+}
+
+final documentNotifierProvider =
+    AutoDisposeAsyncNotifierProvider<DocumentNotifier, PdfDocument?>(
+  () => DocumentNotifier(),
+);
+
+class DocumentNotifier extends AutoDisposeAsyncNotifier<PdfDocument?> {
+  @override
+  FutureOr<PdfDocument?> build() async {
+    final filePath = ref.watch(selectedFileProvider);
+    if (filePath == null || filePath.isEmpty) {
+      log.fine("DocumentNotifier: no file selected");
+      return null;
+    }
+
+    final documentRef = PdfDocumentRefFile(filePath);
+    final listenable = documentRef.resolveListenable();
+
+    // to keep the document alive
+    listenable.addListener(_onDocumentChanged);
+
+    ref.onDispose(() {
+      // to dispose the document
+      log.fine("DocumentNotifier: dispose ${filePath}");
+      listenable.removeListener(_onDocumentChanged);
+    });
+
+    await listenable.load();
+    log.fine("DocumentNotifier: loaded ${filePath}");
+    return listenable.document;
+  }
+
+  void _onDocumentChanged() {
+    log.fine("DocumentNotifier: on event");
+  }
+}
+
+extension SetExtention<T> on Set<T> {
+  int indexOf(T element) {
+    int i = 0;
+    for (final item in this) {
+      if (item == element) {
+        return i;
+      }
+      i++;
+    }
+    return -1; // 見つからない場合
   }
 }

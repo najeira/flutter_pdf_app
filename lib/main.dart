@@ -4,11 +4,12 @@ import 'package:flutter_pdf_app/provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:macos_ui/macos_ui.dart';
 
-import 'filer.dart';
-import 'service.dart';
+import 'file.dart';
+import 'log.dart';
 import 'viewer.dart';
 
 void main() {
+  initLogger();
   runApp(ProviderScope(
     child: const MyApp(),
   ));
@@ -23,7 +24,7 @@ class MyApp extends StatelessWidget {
       title: "PDF Viewer",
       theme: MacosThemeData.light(),
       darkTheme: MacosThemeData.dark(),
-      themeMode: ThemeMode.light,
+      themeMode: ThemeMode.dark,
       home: const _MyScaffold(),
     );
   }
@@ -36,66 +37,32 @@ class _MyScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CallbackShortcuts(
-      bindings: <ShortcutActivator, VoidCallback>{
-        const SingleActivator(LogicalKeyboardKey.arrowUp): () {
-          _changeSelection(context, -1);
-        },
-        const SingleActivator(LogicalKeyboardKey.arrowDown): () {
-          _changeSelection(context, 1);
-        },
-      },
+    final theme = MacosTheme.of(context);
+    return _ShortcutHandler(
       child: Focus(
         child: MacosWindow(
-          backgroundColor: Colors.white,
           child: MacosScaffold(
-            // child: const MyViewer(),
-            toolBar: ToolBar(
-              // alignment: Alignment.centerLeft,
-              leading: MacosIcon(Icons.list_alt),
-              title: Text("PDF Viewer"),
-              automaticallyImplyLeading: true,
-              centerTitle: false,
-              actions: [
-                ToolBarIconButton(
-                  icon: const Icon(Icons.add),
-                  label: "Add",
-                  showLabel: true,
-                  onPressed: () => pickFile(context),
-                ),
-                ToolBarIconButton(
-                  icon: const Icon(Icons.clear_all),
-                  label: "Clear",
-                  showLabel: true,
-                  onPressed: () {
-                    final ps = ProviderScope.containerOf(context, listen: false);
-                    ps.read(fileNamesProvider.notifier).clear();
-                  },
-                ),
-              ],
-            ),
             children: [
               ResizablePane(
                 isResizable: true,
+                resizableSide: ResizableSide.right,
                 minSize: 100.0,
                 maxSize: 500.0,
                 startSize: 200.0,
                 decoration: BoxDecoration(
-                  color: MacosColors.white,
-                  border: Border(
-                    right: BorderSide(
-                      color: MacosColors.systemBlueColor,
-                    ),
-                  ),
+                  color: theme.canvasColor,
+                  // border: Border(
+                  //   right: BorderSide(
+                  //     color: theme.dividerColor,
+                  //   ),
+                  // ),
                 ),
-                resizableSide: ResizableSide.right,
                 builder: (context, scrollController) {
-                  return FileListView(
-                    controller: scrollController
-                  );
+                  return FileListView(controller: scrollController);
                 },
               ),
               ContentArea(
+                minWidth: 300.0,
                 builder: (context, scrollController) {
                   return const MyViewer();
                 },
@@ -106,22 +73,51 @@ class _MyScaffold extends StatelessWidget {
       ),
     );
   }
+}
 
-  void _changeSelection(BuildContext context, int add) {
+class _ShortcutHandler extends StatelessWidget {
+  const _ShortcutHandler({
+    super.key,
+    required this.child,
+  });
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.arrowUp): () {
+          _changeFile(context, -1);
+        },
+        const SingleActivator(LogicalKeyboardKey.arrowDown): () {
+          _changeFile(context, 1);
+        },
+      },
+      child: child,
+    );
+  }
+
+  void _changeFile(BuildContext context, int direction) {
     final ps = ProviderScope.containerOf(context, listen: false);
-    final fileNames = ps.read(fileNamesProvider).valueOrNull;
-    final selectedFile = ps.read(selectedFileProvider);
-    if (selectedFile == null) {
-      final firstFileName = fileNames?.firstOrNull;
-      if (firstFileName != null) {
-        ps.read(selectedFileProvider.notifier).state = firstFileName;
-      }
-    } else if (fileNames != null) {
-      final index = fileNames.indexOf(selectedFile);
-      final nextIndex = index + add;
-      if (nextIndex >= 0 && nextIndex < fileNames.length) {
-        ps.read(selectedFileProvider.notifier).state = fileNames[nextIndex];
+    final files = ps.read(fileListProvider).valueOrNull;
+    final selected = ps.read(selectedFileProvider);
+    final next = _nextFile(files, selected, direction);
+    if (next != null) {
+      ps.read(selectedFileProvider.notifier).state = next;
+    }
+  }
+
+  String? _nextFile(Set<String>? files, String? current, int direction) {
+    if (current == null) {
+      return files?.firstOrNull;
+    } else if (files != null) {
+      final index = files.indexOf(current);
+      final nextIndex = index + direction;
+      if (nextIndex >= 0 && nextIndex < files.length) {
+        return files.elementAt(nextIndex);
       }
     }
+    return null;
   }
 }

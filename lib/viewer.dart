@@ -6,41 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_pdf_app/provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:macos_ui/macos_ui.dart';
 import 'package:pdfrx/pdfrx.dart';
 
-final documentNotifierProvider =
-    AutoDisposeAsyncNotifierProvider<DocumentNotifier, PdfDocument?>(
-  () => DocumentNotifier(),
-);
-
-class DocumentNotifier extends AutoDisposeAsyncNotifier<PdfDocument?> {
-  @override
-  FutureOr<PdfDocument?> build() async {
-    final filePath = ref.watch(selectedFileProvider);
-    if (filePath == null || filePath.isEmpty) {
-      return null;
-    }
-
-    final documentRef = PdfDocumentRefFile(filePath);
-    final listenable = documentRef.resolveListenable();
-
-    // to keep the document alive
-    listenable.addListener(_onDocumentChanged);
-
-    ref.onDispose(() {
-      // to dispose the document
-      listenable.removeListener(_onDocumentChanged);
-    });
-
-    await listenable.load();
-    return listenable.document;
-  }
-
-  void _onDocumentChanged() {
-    debugPrint("onDocumentChanged");
-  }
-}
+import 'log.dart';
 
 class MyViewer extends ConsumerStatefulWidget {
   const MyViewer({
@@ -109,48 +78,28 @@ class _DocumentPageViewState extends State<_DocumentPageView> {
 
   @override
   Widget build(BuildContext context) {
-    return CallbackShortcuts(
-      bindings: <ShortcutActivator, VoidCallback>{
-        const SingleActivator(LogicalKeyboardKey.arrowRight): () {
-          _page(1);
-        },
-        const SingleActivator(LogicalKeyboardKey.arrowLeft): () {
-          _page(-1);
-        },
-      },
+    return _ShortcutHandler(
+      pageController: _pageController,
       child: Focus(
         autofocus: true,
-        child: PageView.builder(
-          scrollBehavior: const _MyScrollBehavior(),
-          controller: _pageController,
-          physics: const AlwaysScrollableScrollPhysics(),
-          pageSnapping: true,
-          itemCount: widget.document.pages.length,
-          itemBuilder: (context, index) {
-            debugPrint("_DocumentPage: ${index}");
-            return _DocumentPage(
-              document: widget.document,
-              index: index,
-            );
-          },
+        child: MouseRegion(
+          cursor: SystemMouseCursors.grab,
+          child: PageView.builder(
+            scrollBehavior: const _MyScrollBehavior(),
+            controller: _pageController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            pageSnapping: true,
+            itemCount: widget.document.pages.length,
+            itemBuilder: (context, index) {
+              log.fine("_DocumentPage: ${index}");
+              return _DocumentPage(
+                document: widget.document,
+                index: index,
+              );
+            },
+          ),
         ),
       ),
-    );
-  }
-
-  Future<void> _page(int add) async {
-    if (_pageController.positions.length != 1) {
-      debugPrint("_DocumentPageView: invalid positions");
-      return;
-    }
-
-    final page = _pageController.page?.round() ?? 0;
-    final nextPage = math.max(page + add, 0);
-    debugPrint("_DocumentPageView: animateToPage ${nextPage}");
-    _pageController.animateToPage(
-      nextPage,
-      duration: const Duration(milliseconds: 100),
-      curve: Curves.easeInOut,
     );
   }
 }
@@ -168,21 +117,13 @@ class _DocumentPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = MacosTheme.of(context);
     return ColoredBox(
-      color: Colors.blue,
-      child: Column(
-        mainAxisSize: MainAxisSize.max,
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: PdfPageView(
-              document: document,
-              pageNumber: index + 1,
-              alignment: Alignment.center,
-            ),
-          ),
-        ],
+      color: theme.canvasColor,
+      child: PdfPageView(
+        document: document,
+        pageNumber: index + 1,
+        alignment: Alignment.center,
       ),
     );
   }
@@ -226,6 +167,49 @@ class _MyError extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Text(error.toString()),
+    );
+  }
+}
+
+class _ShortcutHandler extends StatelessWidget {
+  const _ShortcutHandler({
+    super.key,
+    required this.pageController,
+    required this.child,
+  });
+
+  final PageController pageController;
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.arrowRight): () {
+          _page(1);
+        },
+        const SingleActivator(LogicalKeyboardKey.arrowLeft): () {
+          _page(-1);
+        },
+      },
+      child: child,
+    );
+  }
+
+  Future<void> _page(int add) async {
+    if (pageController.positions.length != 1) {
+      log.warning("_DocumentPageView: invalid positions");
+      return;
+    }
+
+    final page = pageController.page?.round() ?? 0;
+    final nextPage = math.max(page + add, 0);
+    log.fine("_DocumentPageView: animateToPage ${nextPage}");
+    pageController.animateToPage(
+      nextPage,
+      duration: const Duration(milliseconds: 100),
+      curve: Curves.easeInOut,
     );
   }
 }
