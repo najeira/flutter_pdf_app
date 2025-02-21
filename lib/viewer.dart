@@ -11,18 +11,13 @@ import 'package:pdfrx/pdfrx.dart';
 
 import 'log.dart';
 
-class MyViewer extends ConsumerStatefulWidget {
+class MyViewer extends ConsumerWidget {
   const MyViewer({
     super.key,
   });
 
   @override
-  ConsumerState<MyViewer> createState() => _MyViewerState();
-}
-
-class _MyViewerState extends ConsumerState<MyViewer> {
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final data = ref.watch(documentNotifierProvider);
     return data.when(
       data: (document) {

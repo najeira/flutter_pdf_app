@@ -79,10 +79,13 @@ class _FileListTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = MacosTheme.of(context);
+
     final selected = ref.watch(selectedFileProvider);
+
     final isSelected = selected == path;
     final name = pt.basename(path);
     final color = isSelected ? CupertinoColors.activeBlue : theme.canvasColor;
+
     return GestureDetector(
       onTapUp: (TapUpDetails details) {
         log.fine("_FileListTile: onTapUp ${details.kind}");
