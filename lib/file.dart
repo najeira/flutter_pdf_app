@@ -51,7 +51,7 @@ class _ListView extends StatelessWidget {
 
   final ScrollController controller;
 
-  final Set<String> files;
+  final List<MyFile> files;
 
   @override
   Widget build(BuildContext context) {
@@ -59,9 +59,9 @@ class _ListView extends StatelessWidget {
       controller: controller,
       itemCount: files.length,
       itemBuilder: (context, index) {
-        final path = files.elementAt(index);
+        final file = files.elementAt(index);
         return _FileListTile(
-          path: path,
+          path: file.path,
         );
       },
     );
@@ -201,7 +201,7 @@ class _RemoveButton extends ConsumerWidget {
     String selected,
   ) {
     ref.read(selectedFileProvider.notifier).state = null;
-    ref.read(fileListProvider.notifier).remove(selected);
+    ref.read(fileListProvider.notifier).removeByPath(selected);
   }
 }
 

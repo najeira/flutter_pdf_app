@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_pdf_app/provider.dart';
+import 'package:flutter_pdf_app/service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:macos_ui/macos_ui.dart';
 
@@ -99,20 +100,23 @@ class _ShortcutHandler extends StatelessWidget {
   }
 
   void _changeFile(BuildContext context, int direction) {
-    final ps = ProviderScope.containerOf(context, listen: false);
+    final ps = context.providerContainer();
     final files = ps.read(fileListProvider).valueOrNull;
     final selected = ps.read(selectedFileProvider);
     final next = _nextFile(files, selected, direction);
     if (next != null) {
-      ps.read(selectedFileProvider.notifier).state = next;
+      ps.read(selectedFileProvider.notifier).state = next.path;
     }
   }
 
-  String? _nextFile(Set<String>? files, String? current, int direction) {
+  MyFile? _nextFile(List<MyFile>? files, String? current, int direction) {
     if (current == null) {
+      // if no file is selected, select the first one
       return files?.firstOrNull;
     } else if (files != null) {
-      final index = files.indexOf(current);
+      // if a file is selected, select the next or previous one
+      // find the index of the current file by path.
+      final index = files.indexWhere((e) => e.path == current);
       final nextIndex = index + direction;
       if (nextIndex >= 0 && nextIndex < files.length) {
         return files.elementAt(nextIndex);

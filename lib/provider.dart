@@ -6,13 +6,14 @@ import 'package:pdfrx/pdfrx.dart';
 
 import 'cache.dart';
 import 'log.dart';
+import 'service.dart';
 
 final _preferencesProvider = Provider<SharedPreferencesAsync>((ref) {
   return SharedPreferencesAsync();
 });
 
-final _cacheProvider = Provider<Cache>((ref) {
-  return Cache();
+final _cacheStoreProvider = Provider<CacheStore>((ref) {
+  return CacheStore();
 });
 
 final selectedFileProvider = StateProvider<String?>((ref) {
@@ -20,54 +21,85 @@ final selectedFileProvider = StateProvider<String?>((ref) {
 });
 
 final fileListProvider =
-    AsyncNotifierProvider<FileListNotifier, Set<String>>(() {
+    AsyncNotifierProvider<FileListNotifier, List<MyFile>>(() {
   return FileListNotifier();
 });
 
-class FileListNotifier extends AsyncNotifier<Set<String>> {
+class FileListNotifier extends AsyncNotifier<List<MyFile>> {
   static const _prefKey = "files";
 
   @override
-  FutureOr<Set<String>> build() async {
+  FutureOr<List<MyFile>> build() async {
     final pref = ref.watch(_preferencesProvider);
     final res = await pref.getStringList(_prefKey);
     log.fine("FileListNotifier: loaded ${res?.length}");
-    return res != null ? Set.of(res) : {};
-  }
 
-  Future<void> add(String value) async {
-    final list = state.value;
-    if (list != null) {
-      list.add(value);
-      _setStateAndSave(list);
+    if (res == null || res.isEmpty) {
+      return [];
     }
+
+    final futures = res.map((e) async {
+      try {
+        return await MyFile.fromBookmark(e);
+      } catch (ex) {
+        log.warning(ex);
+        return null;
+      }
+    });
+
+    final files = await Future.wait(futures);
+    return files.nonNulls.toList();
   }
 
-  Future<void> addAll(Iterable<String> value) async {
-    final list = state.value;
-    if (list != null) {
-      list.addAll(value);
-      _setStateAndSave(list);
+  Future<void> addFiles(Iterable<MyFile> value) async {
+    // new list
+    var list = state.value;
+    if (list == null) {
+      return;
     }
+    list = List.of(list);
+
+    // add or update
+    for (final item in value) {
+      final index = list.indexWhere(
+        (e) => e.path == item.path,
+      );
+      if (index >= 0) {
+        list[index] = item;
+      } else {
+        list.add(item);
+      }
+    }
+
+    await _setStateAndSave(list);
   }
 
-  Future<void> remove(String value) async {
-    final list = state.value;
+  Future<void> removeByPath(String path) async {
+    var list = state.value;
     if (list != null) {
-      list.remove(value);
-      _setStateAndSave(list);
+      list = List.of(list);
+      final index = list.indexWhere(
+        (e) => e.path == path,
+      );
+      if (index >= 0) {
+        list.removeAt(index);
+        await _setStateAndSave(list);
+      }
     }
   }
 
   Future<void> clear() async {
-    _setStateAndSave(<String>{});
+    await _setStateAndSave([]);
   }
 
-  Future<void> _setStateAndSave(Set<String> value) async {
+  Future<void> _setStateAndSave(List<MyFile> value) async {
     state = AsyncValue.data(value);
+
+    // save bookmarks only
     final pref = ref.read(_preferencesProvider);
-    await pref.setStringList(_prefKey, value.toList());
-    log.fine("FileListNotifier: saved ${value.length}");
+    final bookmarks = value.map((e) => e.bookmark).toList();
+    await pref.setStringList(_prefKey, bookmarks);
+    log.fine("FileListNotifier: saved ${bookmarks.length}");
   }
 }
 
@@ -79,7 +111,7 @@ final documentNotifierProvider =
 class DocumentNotifier extends AutoDisposeAsyncNotifier<PdfDocument?> {
   @override
   FutureOr<PdfDocument?> build() async {
-    final cache = ref.watch(_cacheProvider);
+    final cache = ref.watch(_cacheStoreProvider);
     final filePath = ref.watch(selectedFileProvider);
     if (filePath == null || filePath.isEmpty) {
       log.fine("DocumentNotifier: no file selected");
@@ -111,7 +143,7 @@ class DocumentNotifier extends AutoDisposeAsyncNotifier<PdfDocument?> {
   }
 
   void _pushCache(
-    Cache cache,
+    CacheStore cache,
     String filePath,
     PdfDocumentListenable listenable,
   ) {
@@ -131,18 +163,5 @@ class DocumentNotifier extends AutoDisposeAsyncNotifier<PdfDocument?> {
 
   void _onDocumentChanged() {
     log.fine("DocumentNotifier: on event");
-  }
-}
-
-extension SetExtention<T> on Set<T> {
-  int indexOf(T element) {
-    int i = 0;
-    for (final item in this) {
-      if (item == element) {
-        return i;
-      }
-      i++;
-    }
-    return -1; // 見つからない場合
   }
 }

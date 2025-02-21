@@ -12,17 +12,14 @@ class CacheEntry {
   final VoidCallback onDispose;
 }
 
-class Cache {
+class CacheStore {
   final Map<String, CacheEntry> _cache = {};
 
   CacheEntry? pop(String key) {
     return _cache.remove(key);
   }
 
-  void push(
-    String key,
-    CacheEntry entry,
-  ) {
+  void push(String key, CacheEntry entry) {
     _cache.remove(key);
     if (_cache.length > 10) {
       final oldest = _cache.keys.first;
