@@ -113,8 +113,14 @@ class DocumentNotifier extends AutoDisposeAsyncNotifier<PdfDocument?> {
   FutureOr<PdfDocument?> build() async {
     final cache = ref.watch(_cacheStoreProvider);
     final filePath = ref.watch(selectedFileProvider);
+
     if (filePath == null || filePath.isEmpty) {
       log.fine("DocumentNotifier: no file selected");
+      return null;
+    }
+
+    if (!filePath.endsWith(".pdf")) {
+      log.warning("DocumentNotifier: not a pdf ${filePath}");
       return null;
     }
 
@@ -122,9 +128,10 @@ class DocumentNotifier extends AutoDisposeAsyncNotifier<PdfDocument?> {
     if (cachedEntry != null) {
       log.fine("DocumentNotifier: reuse ${filePath}");
       ref.onDispose(() {
-        _pushCache(cache, filePath, cachedEntry.listenable);
+        _pushCache(cache, filePath, cachedEntry.data, _onDispose);
       });
-      return cachedEntry.listenable.document;
+      final listenable = cachedEntry.data as PdfDocumentListenable;
+      return listenable.document;
     }
 
     final documentRef = PdfDocumentRefFile(filePath);
@@ -134,7 +141,7 @@ class DocumentNotifier extends AutoDisposeAsyncNotifier<PdfDocument?> {
     listenable.addListener(_onDocumentChanged);
 
     ref.onDispose(() {
-      _pushCache(cache, filePath, listenable);
+      _pushCache(cache, filePath, listenable, _onDispose);
     });
 
     await listenable.load();
@@ -142,26 +149,33 @@ class DocumentNotifier extends AutoDisposeAsyncNotifier<PdfDocument?> {
     return listenable.document;
   }
 
-  void _pushCache(
-    CacheStore cache,
-    String filePath,
-    PdfDocumentListenable listenable,
-  ) {
-    log.fine("DocumentNotifier: cache ${filePath}");
-    cache.push(
-      filePath,
-      CacheEntry(
-        listenable,
-        () {
-          log.fine("DocumentNotifier: dispose ${filePath}");
-          // to dispose the document
-          listenable.removeListener(_onDocumentChanged);
-        },
-      ),
-    );
-  }
-
   void _onDocumentChanged() {
     log.fine("DocumentNotifier: on event");
   }
+
+  void _onDispose(Object data) {
+    // the document will be disposed when all listeners are removed.
+    if (data is PdfDocumentListenable) {
+      data.removeListener(_onDocumentChanged);
+    }
+  }
+}
+
+void _pushCache(
+  CacheStore cache,
+  String filePath,
+  Object data,
+  CacheDisposeCallback onDispose,
+) {
+  log.fine("CacheStore: cache ${filePath}");
+  cache.push(
+    filePath,
+    CacheEntry(
+      data,
+      (data) {
+        log.fine("CacheStore: dispose ${filePath}");
+        onDispose(data);
+      },
+    ),
+  );
 }

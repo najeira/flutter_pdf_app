@@ -1,15 +1,16 @@
-import 'package:flutter/material.dart';
-import 'package:pdfrx/pdfrx.dart';
+const _kCacheSize = 10;
+
+typedef CacheDisposeCallback = void Function(Object);
 
 class CacheEntry {
-  CacheEntry(
-    this.listenable,
+  const CacheEntry(
+    this.data,
     this.onDispose,
   );
 
-  final PdfDocumentListenable listenable;
+  final Object data;
 
-  final VoidCallback onDispose;
+  final CacheDisposeCallback onDispose;
 }
 
 class CacheStore {
@@ -20,12 +21,20 @@ class CacheStore {
   }
 
   void push(String key, CacheEntry entry) {
+    // remove the entry if it already exists.
     _cache.remove(key);
-    if (_cache.length > 10) {
+
+    // remove the oldest entry if the cache is full.
+    if (_cache.length > _kCacheSize) {
       final oldest = _cache.keys.first;
       final oldestEntry = _cache.remove(oldest);
-      oldestEntry?.onDispose();
+      if (oldestEntry != null) {
+        // dispose the oldest entry when removing.
+        oldestEntry.onDispose(oldestEntry.data);
+      }
     }
+
+    // add the new entry.
     _cache[key] = entry;
   }
 }
