@@ -12,13 +12,15 @@ final _secureBookmarks = SecureBookmarks();
 
 class MyFile {
   const MyFile({
-    required this.path,
+    required this.file,
     required this.bookmark,
   });
 
-  final String path;
+  final FileSystemEntity file;
 
   final String bookmark;
+
+  String get path => file.path;
 
   static Future<MyFile> fromBookmark(String bookmark) async {
     final file = await _secureBookmarks.resolveBookmark(bookmark);
@@ -27,7 +29,7 @@ class MyFile {
       throw Exception("file ${file.path} does not exist");
     }
     return MyFile(
-      path: file.path,
+      file: file,
       bookmark: bookmark,
     );
   }
@@ -37,6 +39,10 @@ const _kPdfTypeGroup = <XTypeGroup>[
   XTypeGroup(
     label: "PDF files",
     extensions: <String>["pdf"],
+  ),
+  XTypeGroup(
+    label: "ZIP files",
+    extensions: <String>["zip"],
   ),
 ];
 
@@ -54,9 +60,10 @@ Future<void> pickFiles(BuildContext context) async {
 
   final myFiles = await Future.wait(files.map(
     (e) async {
-      final bookmark = await _secureBookmarks.bookmark(File(e.path));
+      final file = File(e.path);
+      final bookmark = await _secureBookmarks.bookmark(file);
       return MyFile(
-        path: e.path,
+        file: file,
         bookmark: bookmark,
       );
     },

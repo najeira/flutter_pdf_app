@@ -1,26 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_pdf_app/pdf.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:macos_ui/macos_ui.dart';
-import 'package:pdfrx/pdfrx.dart';
 
 import 'log.dart';
 import 'widget.dart';
+import 'zip.dart';
 
-class MyPdfViewer extends ConsumerWidget {
-  const MyPdfViewer({
+class MyZipViewer extends ConsumerWidget {
+  const MyZipViewer({
     super.key,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final data = ref.watch(pdfDocumentNotifierProvider);
+    final data = ref.watch(zipDocumentNotifierProvider);
     return data.when(
       data: (document) {
         if (document == null) {
           return const MyEmpty();
         }
-        return _DocumentPageView(
+        return _PageView(
           document: document,
         );
       },
@@ -30,19 +29,19 @@ class MyPdfViewer extends ConsumerWidget {
   }
 }
 
-class _DocumentPageView extends StatefulWidget {
-  const _DocumentPageView({
+class _PageView extends StatefulWidget {
+  const _PageView({
     super.key,
     required this.document,
   });
 
-  final PdfDocument document;
+  final ZipDocument document;
 
   @override
-  _DocumentPageViewState createState() => _DocumentPageViewState();
+  _PageViewState createState() => _PageViewState();
 }
 
-class _DocumentPageViewState extends State<_DocumentPageView> {
+class _PageViewState extends State<_PageView> {
   late final PageController _pageController;
 
   @override
@@ -52,7 +51,7 @@ class _DocumentPageViewState extends State<_DocumentPageView> {
   }
 
   @override
-  void didUpdateWidget(_DocumentPageView oldWidget) {
+  void didUpdateWidget(_PageView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.document != widget.document) {
       if (_pageController.hasClients) {
@@ -80,41 +79,16 @@ class _DocumentPageViewState extends State<_DocumentPageView> {
             controller: _pageController,
             physics: const AlwaysScrollableScrollPhysics(),
             pageSnapping: true,
-            itemCount: widget.document.pages.length,
+            itemCount: widget.document.contents.length,
             itemBuilder: (context, index) {
               log.fine("_DocumentPage: ${index}");
-              return _DocumentPage(
-                document: widget.document,
-                index: index,
+              final content = widget.document.contents[index];
+              return Image.memory(
+                content,
               );
             },
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _DocumentPage extends StatelessWidget {
-  const _DocumentPage({
-    super.key,
-    required this.document,
-    required this.index,
-  });
-
-  final PdfDocument document;
-
-  final int index;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = MacosTheme.of(context);
-    return ColoredBox(
-      color: theme.canvasColor,
-      child: PdfPageView(
-        document: document,
-        pageNumber: index + 1,
-        alignment: Alignment.center,
       ),
     );
   }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_pdf_app/provider.dart';
 import 'package:flutter_pdf_app/service.dart';
+import 'package:flutter_pdf_app/widget.dart';
+import 'package:flutter_pdf_app/zip_viewer.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:macos_ui/macos_ui.dart';
 
@@ -65,7 +67,7 @@ class _MyScaffold extends StatelessWidget {
               ContentArea(
                 minWidth: 300.0,
                 builder: (context, scrollController) {
-                  return const MyViewer();
+                  return const _Viewer();
                 },
               ),
             ],
@@ -73,6 +75,25 @@ class _MyScaffold extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _Viewer extends ConsumerWidget {
+  const _Viewer({
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final filePath = ref.watch(selectedFileProvider);
+    if (filePath != null) {
+      if (filePath.endsWith(".zip")) {
+        return MyZipViewer();
+      } else if (filePath.endsWith(".pdf")) {
+        return MyPdfViewer();
+      }
+    }
+    return MyEmpty();
   }
 }
 

@@ -1,3 +1,5 @@
+import 'log.dart';
+
 const _kCacheSize = 10;
 
 typedef CacheDisposeCallback = void Function(Object);
@@ -30,11 +32,13 @@ class CacheStore {
       final oldestEntry = _cache.remove(oldest);
       if (oldestEntry != null) {
         // dispose the oldest entry when removing.
+        log.fine("CacheStore: dispose ${key}");
         oldestEntry.onDispose(oldestEntry.data);
       }
     }
 
     // add the new entry.
     _cache[key] = entry;
+    log.fine("CacheStore: cache ${key}");
   }
 }

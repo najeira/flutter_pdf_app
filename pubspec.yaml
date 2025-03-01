@@ -7,6 +7,7 @@ environment:
   sdk: ^3.6.1
 
 dependencies:
+  archive: ^4.0.3
   #file_picker: ^8.1.7
   file_selector: ^1.0.3
   #file_selector_macos: ^0.9.4+2
