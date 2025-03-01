@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'log.dart';
+import 'page_view.dart';
 import 'widget.dart';
 import 'zip.dart';
 
@@ -29,7 +28,7 @@ class MyZipViewer extends ConsumerWidget {
   }
 }
 
-class _PageView extends StatefulWidget {
+class _PageView extends StatelessWidget {
   const _PageView({
     super.key,
     required this.document,
@@ -38,58 +37,17 @@ class _PageView extends StatefulWidget {
   final ZipDocument document;
 
   @override
-  _PageViewState createState() => _PageViewState();
-}
-
-class _PageViewState extends State<_PageView> {
-  late final PageController _pageController;
-
-  @override
-  void initState() {
-    super.initState();
-    _pageController = PageController();
-  }
-
-  @override
-  void didUpdateWidget(_PageView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.document != widget.document) {
-      if (_pageController.hasClients) {
-        _pageController.jumpToPage(0);
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return PageViewShortcut(
-      pageController: _pageController,
-      child: Focus(
-        autofocus: true,
-        child: MouseRegion(
-          cursor: SystemMouseCursors.grab,
-          child: PageView.builder(
-            scrollBehavior: const MyScrollBehavior(),
-            controller: _pageController,
-            physics: const AlwaysScrollableScrollPhysics(),
-            pageSnapping: true,
-            itemCount: widget.document.contents.length,
-            itemBuilder: (context, index) {
-              log.fine("_DocumentPage: ${index}");
-              final content = widget.document.contents[index];
-              return Image.memory(
-                content,
-              );
-            },
-          ),
-        ),
-      ),
+    return PageViewer(
+      key: ValueKey("PageViewer-${identityHashCode(document)}"),
+      itemCount: document.contents.length,
+      itemBuilder: (context, index) {
+        final content = document.contents[index];
+        return Image.memory(
+          content,
+          fit: BoxFit.contain,
+        );
+      },
     );
   }
 }

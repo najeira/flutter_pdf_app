@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_pdf_app/provider.dart';
-import 'package:flutter_pdf_app/service.dart';
-import 'package:flutter_pdf_app/widget.dart';
-import 'package:flutter_pdf_app/zip_viewer.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:macos_ui/macos_ui.dart';
 
 import 'file.dart';
 import 'log.dart';
-import 'viewer.dart';
+import 'pdf_viewer.dart';
+import 'provider.dart';
+import 'service.dart';
+import 'widget.dart';
+import 'zip_viewer.dart';
 
 void main() {
   initLogger();
