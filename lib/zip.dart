@@ -10,20 +10,24 @@ import 'provider.dart';
 
 class ZipDocument {
   const ZipDocument({
+    required this.filePath,
     required this.contents,
   });
+
+  final String filePath;
 
   final List<Uint8List> contents;
 
   static Future<ZipDocument> fromFile(String filePath) async {
     final future = compute(_loadZipEntries, filePath);
     return ZipDocument(
+      filePath: filePath,
       contents: await future,
     );
   }
 
   void dispose() {
-    log.fine("ZipDocument: dispose");
+    log.fine("ZipDocument: dispose ${filePath}");
   }
 }
 
@@ -89,11 +93,11 @@ class ZipDocumentNotifier extends AutoDisposeAsyncNotifier<ZipDocument?> {
     log.fine("ZipDocumentNotifier: loaded ${filePath}");
     return document;
   }
+}
 
-  void _onDispose(Object data) {
-    // the document will be disposed when all listeners are removed.
-    if (data is ZipDocument) {
-      data.dispose();
-    }
+void _onDispose(Object data) {
+  // the document will be disposed when all listeners are removed.
+  if (data is ZipDocument) {
+    data.dispose();
   }
 }

@@ -36,17 +36,27 @@ class _PageView extends StatelessWidget {
     required this.document,
   });
 
-  final PdfDocument document;
+  final PdfDocumentRef document;
 
   @override
   Widget build(BuildContext context) {
-    return PageViewer(
-      key: ValueKey("PageViewer-${identityHashCode(document)}"),
-      itemCount: document.pages.length,
-      itemBuilder: (context, index) {
-        return _DocumentPage(
-          document: document,
-          index: index,
+    return PdfDocumentViewBuilder(
+      documentRef: document,
+      loadingBuilder: (_) => const MyLoading(),
+      errorBuilder: (_, error, __) => MyError(error),
+      builder: (context, document) {
+        if (document == null) {
+          return const MyEmpty();
+        }
+        return PageViewer(
+          key: ValueKey("PageViewer-${identityHashCode(document)}"),
+          itemCount: document.pages.length,
+          itemBuilder: (context, index) {
+            return _DocumentPage(
+              document: document,
+              index: index,
+            );
+          },
         );
       },
     );
